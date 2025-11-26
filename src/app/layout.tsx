@@ -25,9 +25,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-950`}
       >
-        {children}
+        <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center p-4 bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-900">
+          <div className="flex gap-6 text-sm font-medium">
+            <a href="/" className="text-zinc-400 hover:text-white transition-colors">Summarizer</a>
+            <a href="/mask" className="text-zinc-400 hover:text-white transition-colors">Mask Prediction</a>
+          </div>
+        </nav>
+        <div className="pt-16">
+          {children}
+        </div>
       </body>
     </html>
   );
