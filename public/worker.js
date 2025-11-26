@@ -29,11 +29,30 @@ self.addEventListener('message', async (event) => {
     });
 
     // Actually perform the summarization
-    let output = await summarizer(event.data.text);
+    let output = await summarizer(event.data.text, {
+        max_length: event.data.max_length,
+        min_length: event.data.min_length,
+    });
+
+    // Tokenize input to visualize
+    let input_tensor = summarizer.tokenizer(event.data.text);
+    let input_tokens = [];
+    for (let i = 0; i < input_tensor.input_ids.data.length; ++i) {
+        input_tokens.push(summarizer.tokenizer.decode([input_tensor.input_ids.data[i]]));
+    }
+
+    // Tokenize output to visualize
+    let output_tensor = summarizer.tokenizer(output[0].summary_text);
+    let output_tokens = [];
+    for (let i = 0; i < output_tensor.input_ids.data.length; ++i) {
+        output_tokens.push(summarizer.tokenizer.decode([output_tensor.input_ids.data[i]]));
+    }
 
     // Send the result back to the main thread
     self.postMessage({
         status: 'complete',
         output: output,
+        input_tokens: input_tokens,
+        output_tokens: output_tokens,
     });
 });

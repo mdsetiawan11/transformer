@@ -8,6 +8,10 @@ export default function Home() {
   const [ready, setReady] = useState<boolean | null>(null);
   const [progressItems, setProgressItems] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [maxLength, setMaxLength] = useState(100);
+  const [minLength, setMinLength] = useState(20);
+  const [inputTokens, setInputTokens] = useState<string[]>([]);
+  const [outputTokens, setOutputTokens] = useState<string[]>([]);
 
   const worker = useRef<Worker | null>(null);
 
@@ -38,6 +42,8 @@ export default function Home() {
           break;
         case 'complete':
           setOutput(e.data.output[0].summary_text);
+          setInputTokens(e.data.input_tokens);
+          setOutputTokens(e.data.output_tokens);
           setIsProcessing(false);
           break;
       }
@@ -50,7 +56,11 @@ export default function Home() {
 
   const summarize = () => {
     setIsProcessing(true);
-    worker.current?.postMessage({ text: input });
+    worker.current?.postMessage({
+      text: input,
+      max_length: maxLength,
+      min_length: minLength,
+    });
   };
 
   return (
@@ -74,6 +84,31 @@ export default function Home() {
             />
             <div className="absolute bottom-3 right-3 text-xs text-zinc-600 pointer-events-none">
               {input.length} chars
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Max Length: {maxLength}</label>
+              <input
+                type="range"
+                min="50"
+                max="500"
+                value={maxLength}
+                onChange={e => setMaxLength(parseInt(e.target.value))}
+                className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs text-zinc-400 font-medium uppercase tracking-wider">Min Length: {minLength}</label>
+              <input
+                type="range"
+                min="10"
+                max="100"
+                value={minLength}
+                onChange={e => setMinLength(parseInt(e.target.value))}
+                className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+              />
             </div>
           </div>
 
@@ -105,9 +140,34 @@ export default function Home() {
           </div>
 
           {output && (
-            <div className="mt-12 pt-8 border-t border-zinc-900 animate-in fade-in duration-700">
-              <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-4">Summary</h2>
-              <p className="text-zinc-300 leading-7 text-sm">{output}</p>
+            <div className="mt-12 pt-8 border-t border-zinc-900 animate-in fade-in duration-700 space-y-8">
+              <div>
+                <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-4">Summary</h2>
+                <p className="text-zinc-300 leading-7 text-sm">{output}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-3">Input Tokens ({inputTokens.length})</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {inputTokens.map((token, i) => (
+                      <span key={i} className="inline-block px-1.5 py-0.5 bg-zinc-900 text-zinc-400 text-[10px] rounded border border-zinc-800 font-mono hover:bg-zinc-800 transition-colors">
+                        {token}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-3">Output Tokens ({outputTokens.length})</h3>
+                  <div className="flex flex-wrap gap-1">
+                    {outputTokens.map((token, i) => (
+                      <span key={i} className="inline-block px-1.5 py-0.5 bg-indigo-900/30 text-indigo-300 text-[10px] rounded border border-indigo-500/20 font-mono hover:bg-indigo-900/50 transition-colors">
+                        {token}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
