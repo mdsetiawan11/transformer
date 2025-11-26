@@ -1,65 +1,117 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
 
 export default function Home() {
+  const [input, setInput] = useState('The tower is 324 metres (1,063 ft) tall, about the same height as an 81-storey building, and the tallest structure in Paris. Its base is square, measuring 125 metres (410 ft) on each side. During its construction, the Eiffel Tower surpassed the Washington Monument to become the tallest man-made structure in the world, a title it held for 41 years until the Chrysler Building in New York City was finished in 1930. It was the first structure to reach a height of 300 metres. Due to the addition of a broadcasting aerial at the top of the tower in 1957, it is now taller than the Chrysler Building by 5.2 metres (17 ft). Excluding transmitters, the Eiffel Tower is the second tallest free-standing structure in France after the Millau Viaduct.');
+  const [output, setOutput] = useState('');
+  const [ready, setReady] = useState<boolean | null>(null);
+  const [progressItems, setProgressItems] = useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const worker = useRef<Worker | null>(null);
+
+  useEffect(() => {
+    if (!worker.current) {
+      worker.current = new Worker('/worker.js', { type: 'module' });
+    }
+
+    const onMessageReceived = (e: MessageEvent) => {
+      switch (e.data.status) {
+        case 'initiate':
+          setReady(false);
+          setProgressItems(prev => [...prev, e.data]);
+          break;
+        case 'progress':
+          setProgressItems(prev => prev.map(item => {
+            if (item.file === e.data.file) {
+              return { ...item, progress: e.data.progress };
+            }
+            return item;
+          }));
+          break;
+        case 'done':
+          setProgressItems(prev => prev.filter(item => item.file !== e.data.file));
+          break;
+        case 'ready':
+          setReady(true);
+          break;
+        case 'complete':
+          setOutput(e.data.output[0].summary_text);
+          setIsProcessing(false);
+          break;
+      }
+    };
+
+    worker.current.addEventListener('message', onMessageReceived);
+
+    return () => worker.current?.removeEventListener('message', onMessageReceived);
+  }, []);
+
+  const summarize = () => {
+    setIsProcessing(true);
+    worker.current?.postMessage({ text: input });
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-zinc-950 text-zinc-100 font-sans selection:bg-white/20">
+      <div className="w-full max-w-2xl">
+        <h1 className="text-3xl font-light mb-2 tracking-tight text-white">
+          Summarizer
+        </h1>
+        <p className="text-zinc-500 mb-8 text-sm">
+          Client-side inference powered by Transformers.js
+        </p>
+
+        <div className="space-y-6">
+          <div className="relative group">
+            <textarea
+              className="w-full p-4 rounded-lg bg-zinc-900/50 border border-zinc-800 focus:border-zinc-600 focus:ring-0 outline-none transition-all resize-none text-zinc-300 placeholder-zinc-600 text-sm leading-relaxed"
+              rows={12}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Enter text to summarize..."
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="absolute bottom-3 right-3 text-xs text-zinc-600 pointer-events-none">
+              {input.length} chars
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              className="px-6 py-2.5 bg-white text-black text-sm font-medium rounded-md hover:bg-zinc-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={summarize}
+              disabled={isProcessing || (ready === false)}
+            >
+              {isProcessing ? 'Processing...' : 'Summarize'}
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {progressItems.map(data => (
+              <div key={data.file} className="bg-zinc-900 rounded border border-zinc-800 p-3">
+                <div className="flex justify-between text-xs mb-2 text-zinc-400">
+                  <span className="truncate max-w-[200px]">{data.file}</span>
+                  <span>{Math.round(data.progress)}%</span>
+                </div>
+                <div className="w-full bg-zinc-800 rounded-full h-1">
+                  <div
+                    className="bg-white h-1 rounded-full transition-all duration-300"
+                    style={{ width: `${data.progress}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {output && (
+            <div className="mt-12 pt-8 border-t border-zinc-900 animate-in fade-in duration-700">
+              <h2 className="text-xs font-medium uppercase tracking-wider text-zinc-500 mb-4">Summary</h2>
+              <p className="text-zinc-300 leading-7 text-sm">{output}</p>
+            </div>
+          )}
         </div>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }
